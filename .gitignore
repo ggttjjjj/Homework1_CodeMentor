@@ -1,0 +1,26 @@
+# Python 运行时产物
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# 本地密钥配置（只上传 .env.example 模板）
+.env
+config.json
+
+# IDE
+.idea/
+.vscode/
+
+# 打包产物
+*.zip
+build/
+dist/
+
+# 测试临时工作区
+.pytest_tmp/
+

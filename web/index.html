@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CodeMentor · 代码助手 Agent</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231f2328'/><text x='50' y='69' font-size='54' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'>C</text></svg>">
+  <link rel="stylesheet" href="/static/style.css">
+  <!-- Markdown 渲染与代码高亮（CDN 不可用时自动降级为纯文本，不影响使用） -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.1.5/dist/purify.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+</head>
+<body>
+  <div id="config-banner" class="config-banner hidden">
+    ⚠ 尚未配置 API Key —— 复制 <code>.env.example</code> 为 <code>.env</code>，填入你的密钥后重启服务。
+    <span class="mock-hint">临时体验可重启：<code>python web.py --mock</code></span>
+  </div>
+
+  <div class="app">
+    <!-- ============ 侧边栏 ============ -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">C</div>
+        <div class="brand-text">
+          <h1>CodeMentor</h1>
+          <p>代码助手 Agent</p>
+        </div>
+      </div>
+
+      <div class="section-label">工作模式</div>
+      <nav id="modes" class="modes"><!-- JS 注入 --></nav>
+
+      <div class="section-label">运行状态</div>
+      <div class="panel status-panel">
+        <div class="row"><span class="k">模型</span><span class="v mono" id="st-model">–</span></div>
+        <div class="row"><span class="k">协议</span><span class="v mono" id="st-protocol">–</span></div>
+        <div class="row"><span class="k">工作区</span><span class="v mono" id="st-workspace" title="">–</span></div>
+        <div class="row"><span class="k">记忆轮次</span><span class="v mono" id="st-memory">0</span></div>
+      </div>
+
+      <div class="section-label collapsible" id="tools-toggle">工具箱 <span class="chev">▾</span></div>
+      <ul id="tools" class="tools"><!-- JS 注入 --></ul>
+
+      <button id="btn-reset" class="ghost-btn" title="清空多轮对话记忆">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+        清空对话记忆
+      </button>
+
+      <footer class="sidebar-footer">
+        <span>ReAct · 输入 → 推理 → 工具 → 输出</span>
+        <span class="mono">v1.0</span>
+      </footer>
+    </aside>
+
+    <!-- ============ 主聊天区 ============ -->
+    <main class="chat">
+      <header class="chat-header">
+        <div>
+          <h2 id="mode-title">综合助手</h2>
+          <p id="mode-hint">自动判断任务类型</p>
+        </div>
+        <span id="busy-badge" class="busy-badge hidden">
+          <span class="dot"></span>执行中
+        </span>
+      </header>
+
+      <div id="messages" class="messages">
+        <!-- 空状态：JS 注入 -->
+      </div>
+
+      <div class="composer">
+        <div id="chips" class="chips hidden"><!-- JS 注入 --></div>
+        <div class="inputbox" id="inputbox">
+          <textarea id="input" rows="1" placeholder="描述你的任务…（Enter 发送，Shift+Enter 换行）"></textarea>
+          <button id="send" class="send-btn" title="发送">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+          </button>
+        </div>
+        <p class="composer-note">Agent 会真实读取/执行工作区文件 · 回答基于工具观察结果生成</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- ============ 首次配置向导（未配置 .env 时全屏显示） ============ -->
+  <div id="setup-wizard" class="wizard hidden">
+    <div class="wizard-card">
+      <div class="w-logo">C</div>
+      <h2>欢迎使用 CodeMentor</h2>
+      <p class="w-lead">首次使用请配置你的大模型接入。配置将保存到项目根目录的
+        <code>.env</code> 文件——<b>下次打开自动生效，无需重复填写</b>。</p>
+
+      <label class="w-label">服务商</label>
+      <select id="w-provider" class="w-select"></select>
+
+      <label class="w-label">API Key <span class="req">*</span></label>
+      <input id="w-apikey" class="w-input mono" type="password" placeholder="sk-..." autocomplete="off">
+
+      <label class="w-label">接口地址 base_url</label>
+      <input id="w-baseurl" class="w-input mono" placeholder="https://...">
+
+      <label class="w-label hidden" id="w-protocol-row">接口协议（自定义接口适用）</label>
+      <select id="w-protocol" class="w-select hidden">
+        <option value="openai">openai 协议（绝大多数服务商）</option>
+        <option value="anthropic">anthropic 协议（Claude / 智谱 Coding 套餐同款）</option>
+      </select>
+
+      <label class="w-label">模型</label>
+      <input id="w-model" class="w-input mono" list="w-model-list">
+      <datalist id="w-model-list"></datalist>
+
+      <div id="w-error" class="w-error hidden"></div>
+
+      <button id="w-submit" class="w-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>
+        保存并开始使用
+      </button>
+
+      <p class="w-hint">不想配置？离线体验：关闭本页，运行 <code>python web.py --mock</code></p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

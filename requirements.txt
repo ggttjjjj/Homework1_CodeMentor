@@ -1,0 +1,6 @@
+# CodeMentor 依赖（刻意保持最小）
+requests>=2.28      # LLM HTTP 调用
+flask>=3.0          # Web 界面
+
+# 开发与测试
+pytest>=7.0
